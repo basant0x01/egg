@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # egg - Email Grabber from GitHub
-# Author: Basant Karki (basant0x01) - Modified for Table Output & Deduplication
-# Version: 1.3 (Unique Emails Only)
+# Author: Basant Karki (basant0x01)
+# Version: 0.1
 
 # Colors
 GREEN='\033[0;32m'
