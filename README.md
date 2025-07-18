@@ -2,13 +2,17 @@
 <img width="1920" height="345" alt="image" src="https://github.com/user-attachments/assets/a2636257-cf1b-4fc7-b3ae-5928ab45d1ef" />
 
 
+[Example: `./egg.sh basant0x01/GasGuard -cl 100 -o <output>`]
+
 egg (Email Grabber from GitHub) is a lightweight OSINT and recon tool designed to extract publicly available email addresses from GitHub repositories, commits, and patch files. Ideal for bug bounty hunters, security researchers, and OSINT professionals, egg helps streamline GitHub-based reconnaissance by identifying exposed email metadata in commit history.
 
 GitHub repositories often reveal author information through commits, and although GitHub obfuscates many emails using noreply addresses, contributors who haven't enabled privacy settings or who commit using external Git clients may still expose their real email addresses. egg automates the process of identifying these email addresses in a streamlined and ethical way.
 
-# Usage
-`./egg <user/repo> [commit_limit]`  (For example `./egg basant0x01/GasGuard 100`)
 
+
+
+# Usage
+`./egg.sh <user/repo> [commit_limit] -o [output]` 
 
 🔍 What egg Does:
 
