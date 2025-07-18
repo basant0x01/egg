@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # egg - Email Grabber from GitHub
-# Author: Basant Karki (basant0x01)
-# Version: 1.1
+# Author: Basant Karki (basant0x01) - Modified for Table Output & Deduplication
+# Version: 1.3 (Unique Emails Only)
 
 # Colors
 GREEN='\033[0;32m'
@@ -80,10 +80,7 @@ fi
 
 # Normalize and validate single repo input
 if [ "$MODE" == "single" ]; then
-    # Remove leading "github.com/" if present
     REPO="${REPO#github.com/}"
-
-    # Validate format user/repo
     if ! [[ "$REPO" =~ ^[^/]+/[^/]+$ ]]; then
         echo -e "${YELLOW}[-] Invalid repo format: '$REPO'. Use user/repo (e.g., torvalds/linux)${NC}"
         exit 1
@@ -96,26 +93,49 @@ echo -e "${GREEN}[+] Output file:${NC} $OUTPUT_FILE"
 echo -e "${GREEN}[+] Commit limit per repo:${NC} $LIMIT"
 echo
 
-# Function to extract emails from a single commit
+# Declare associative array to store seen emails (Bash >=4)
+declare -A seen_entries
+
+# Print table header
+print_table_header() {
+    printf "\n┌%-44s┬%-20s┬%-40s┐\n" "--------------------------------------------" "--------------------" "----------------------------------------"
+    printf "│ %-42s │ %-18s │ %-38s │\n" "Commit" "Name" "Email"
+    printf "├%-44s┼%-20s┼%-40s┤\n" "--------------------------------------------" "--------------------" "----------------------------------------"
+}
+
+# Print table footer
+print_table_footer() {
+    printf "└%-44s┴%-20s┴%-40s┘\n" "--------------------------------------------" "--------------------" "----------------------------------------"
+}
+
+# Extract emails from commit, only unique emails
 extract_emails_from_commit() {
     local repo="$1"
     local sha="$2"
+
     curl -s "https://github.com/$repo/commit/$sha.patch" | \
     grep '^From: ' | sed 's/^From: //' | grep -v "users.noreply.github.com" | while read -r line; do
         name=$(echo "$line" | awk -F '<' '{print $1}' | sed 's/"//g' | perl -MHTML::Entities -pe 'decode_entities($_);')
         email=$(echo "$line" | grep -oP '(?<=<)[^>]+')
+
         if [ -n "$email" ]; then
-            formatted="$repo: $name <$email>"
-            echo "$formatted"
-            echo "$formatted" >> "$OUTPUT_FILE"
+            # Check if email already seen
+            if [[ -n "${seen_entries[$email]}" ]]; then
+                continue
+            fi
+
+            seen_entries[$email]=1
+            printf "│ %-42s │ %-18s │ %-38s │\n" "$sha" "$name" "$email"
+            echo "$repo: $name <$email>" >> "$OUTPUT_FILE"
         fi
     done
 }
 
-# Function to process a single repo
+# Process a single repository
 process_repo() {
     local repo="$1"
     echo -e "${GREEN}[+] Processing repo:${NC} $repo"
+    echo
 
     local commits
     commits=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$repo/commits?per_page=$LIMIT" | jq -r '.[].sha')
@@ -125,15 +145,16 @@ process_repo() {
         return
     fi
 
+    print_table_header
     for sha in $commits; do
-        extract_emails_from_commit "$repo" "$sha" &
-        sleep 0.2 # Avoid hitting rate limits
+        extract_emails_from_commit "$repo" "$sha"
+        sleep 0.2
     done
-
-    wait
+    print_table_footer
+    echo
 }
 
-# Main execution based on mode
+# Main execution
 if [ "$MODE" == "single" ]; then
     process_repo "$REPO"
 elif [ "$MODE" == "file" ]; then
@@ -141,8 +162,6 @@ elif [ "$MODE" == "file" ]; then
     while IFS= read -r repo || [ -n "$repo" ]; do
         [[ "$repo" =~ ^#.*$ ]] && continue
         [[ -z "$repo" ]] && continue
-
-        # Remove github.com/ prefix if exists
         repo="${repo#github.com/}"
 
         if ! [[ "$repo" =~ ^[^/]+/[^/]+$ ]]; then
@@ -151,7 +170,6 @@ elif [ "$MODE" == "file" ]; then
         fi
 
         process_repo "$repo" &
-
         ((count++))
         if (( count % MAX_THREADS == 0 )); then
             wait
@@ -160,4 +178,5 @@ elif [ "$MODE" == "file" ]; then
     wait
 fi
 
-echo -e "${GREEN}[+] Extraction complete. Results saved to:${NC} $OUTPUT_FILE"
+# Final message
+echo -e "${GREEN}[+] Saved Output:${NC} $(realpath "$OUTPUT_FILE")"
