@@ -13,6 +13,7 @@ GitHub repositories often reveal author information through commits, and althoug
 
 # Usage
 `chmod +x requirement.sh & ./requirement.sh`
+
 `chmod +x ./egg.sh`
 `./egg.sh <user/repo> [commit_limit] -o [output]` 
 
